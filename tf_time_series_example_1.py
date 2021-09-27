@@ -1,64 +1,12 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+# based on ./tf_time_series_example_0.py which itself is based on
 # https://www.tensorflow.org/tutorials/structured_data/time_series
-# converted from
-# https://colab.research.google.com/github/tensorflow/docs/blob/master/site/en/tutorials/structured_data/time_series.ipynb
-# via
-# ipython nbconvert time_series.ipynb --to script
-# and then lotsa plt.show()s added and IPython.display.clear_output()s deleted.
-
-# ##### Copyright 2019 The TensorFlow Authors.
-
-# In[1]:
-
-
-#@title Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
 #
-# https://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# python tf_time_series_example_1.py fot_meteo.csv
 
-
-# # Time series forecasting
-
-# <table class="tfo-notebook-buttons" align="left">
-#   <td>
-#     <a target="_blank" href="https://www.tensorflow.org/tutorials/structured_data/time_series"><img src="https://www.tensorflow.org/images/tf_logo_32px.png" />View on TensorFlow.org</a>
-#   </td>
-#   <td>
-#     <a target="_blank" href="https://colab.research.google.com/github/tensorflow/docs/blob/master/site/en/tutorials/structured_data/time_series.ipynb"><img src="https://www.tensorflow.org/images/colab_logo_32px.png" />Run in Google Colab</a>
-#   </td>
-#   <td>
-#     <a target="_blank" href="https://github.com/tensorflow/docs/blob/master/site/en/tutorials/structured_data/time_series.ipynb"><img src="https://www.tensorflow.org/images/GitHub-Mark-32px.png" />View source on GitHub</a>
-#   </td>
-#   <td>
-#     <a href="https://storage.googleapis.com/tensorflow_docs/docs/site/en/tutorials/structured_data/time_series.ipynb"><img src="https://www.tensorflow.org/images/download_logo_32px.png" />Download notebook</a>
-#   </td>
-# </table>
-
-# This tutorial is an introduction to time series forecasting using TensorFlow. It builds a few different styles of models including Convolutional and Recurrent Neural Networks (CNNs and RNNs).
-# 
-# This is covered in two main parts, with subsections: 
-# 
-# * Forecast for a single time step:
-#   * A single feature.
-#   * All features.
-# * Forecast multiple steps:
-#   * Single-shot: Make the predictions all at once.
-#   * Autoregressive: Make one prediction at a time and feed the output back to the model.
-
-# ## Setup
-
-# In[2]:
-
-
+import sys
 import os
 import datetime
 
@@ -74,49 +22,36 @@ import tensorflow as tf
 mpl.rcParams['figure.figsize'] = (8, 6)
 mpl.rcParams['axes.grid'] = False
 
+csv_path, = sys.argv[1:]
 
-# ## The weather dataset
-# 
-# This tutorial uses a <a href="https://www.bgc-jena.mpg.de/wetter/" class="external">weather time series dataset</a> recorded by the <a href="https://www.bgc-jena.mpg.de" class="external">Max Planck Institute for Biogeochemistry</a>.
-# 
-# This dataset contains 14 different features such as air temperature, atmospheric pressure, and humidity. These were collected every 10 minutes, beginning in 2003. For efficiency, you will use only the data collected between 2009 and 2016. This section of the dataset was prepared by François Chollet for his book <a href="https://www.manning.com/books/deep-learning-with-python" class="external">Deep Learning with Python</a>.
+df = pd.read_csv(csv_path, sep='\t')
+print(df.head())
 
-# In[3]:
+df = df[['Time', 'TREND_AKKUBANK_PV1_P', 'TREND_AKKUBANK_PV2_P', 'ta', 'sg', 'sr', 'suv']]
 
+df = df.rename({'TREND_AKKUBANK_PV1_P': 'pv1', 'TREND_AKKUBANK_PV2_P': 'pv2'}, axis='columns')
 
-zip_path = tf.keras.utils.get_file(
-    origin='https://storage.googleapis.com/tensorflow/tf-keras-datasets/jena_climate_2009_2016.csv.zip',
-    fname='jena_climate_2009_2016.csv.zip',
-    extract=True)
-csv_path, _ = os.path.splitext(zip_path)
-
-
-# This tutorial will just deal with **hourly predictions**, so start by sub-sampling the data from 10-minute intervals to one-hour intervals:
-
-# In[4]:
-
-
-df = pd.read_csv(csv_path)
-# Slice [start:stop:step], starting from index 5 take every 6th record.
-df = df[5::6]
-
-date_time = pd.to_datetime(df.pop('Date Time'), format='%d.%m.%Y %H:%M:%S')
-
+date_time = pd.to_datetime(df['Time'], format='%Y-%m-%d %H:%M:%S') # 2021-01-01 00:00:00
 
 # Let's take a glance at the data. Here are the first few rows:
 
 # In[5]:
 
 
-df.head()
+print(df.head())
 
 
 # Here is the evolution of a few features over time:
 
 # In[6]:
 
+# met columns:
+# sg: 'gamma dózis'
+# sr: 'globálsugárzás'
+# suv: 'UV-sugárzás'
+# ta: 'hőmérséklet'
 
-plot_cols = ['T (degC)', 'p (mbar)', 'rho (g/m**3)']
+plot_cols = ['ta', 'sr', 'pv1']
 plot_features = df[plot_cols]
 plot_features.index = date_time
 _ = plot_features.plot(subplots=True)
@@ -136,79 +71,6 @@ plt.show()
 df.describe().transpose()
 plt.show()
 
-
-# #### Wind velocity
-
-# One thing that should stand out is the `min` value of the wind velocity (`wv (m/s)`) and the maximum value (`max. wv (m/s)`) columns. This `-9999` is likely erroneous.
-# 
-# There's a separate wind direction column, so the velocity should be greater than zero (`>=0`). Replace it with zeros:
-
-# In[8]:
-
-
-wv = df['wv (m/s)']
-bad_wv = wv == -9999.0
-wv[bad_wv] = 0.0
-
-max_wv = df['max. wv (m/s)']
-bad_max_wv = max_wv == -9999.0
-max_wv[bad_max_wv] = 0.0
-
-# The above inplace edits are reflected in the DataFrame.
-df['wv (m/s)'].min()
-
-
-# ### Feature engineering
-# 
-# Before diving in to build a model, it's important to understand your data and be sure that you're passing the model appropriately formatted data.
-
-# #### Wind
-# The last column of the data, `wd (deg)`—gives the wind direction in units of degrees. Angles do not make good model inputs: 360° and 0° should be close to each other and wrap around smoothly. Direction shouldn't matter if the wind is not blowing.
-# 
-# Right now the distribution of wind data looks like this:
-
-# In[9]:
-
-
-plt.hist2d(df['wd (deg)'], df['wv (m/s)'], bins=(50, 50), vmax=400)
-plt.colorbar()
-plt.xlabel('Wind Direction [deg]')
-plt.ylabel('Wind Velocity [m/s]')
-plt.show()
-
-
-# But this will be easier for the model to interpret if you convert the wind direction and velocity columns to a wind **vector**:
-
-# In[10]:
-
-
-wv = df.pop('wv (m/s)')
-max_wv = df.pop('max. wv (m/s)')
-
-# Convert to radians.
-wd_rad = df.pop('wd (deg)')*np.pi / 180
-
-# Calculate the wind x and y components.
-df['Wx'] = wv*np.cos(wd_rad)
-df['Wy'] = wv*np.sin(wd_rad)
-
-# Calculate the max wind x and y components.
-df['max Wx'] = max_wv*np.cos(wd_rad)
-df['max Wy'] = max_wv*np.sin(wd_rad)
-
-
-# The distribution of wind vectors is much simpler for the model to correctly interpret:
-
-# In[11]:
-
-
-plt.hist2d(df['Wx'], df['Wy'], bins=(50, 50), vmax=400)
-plt.colorbar()
-plt.xlabel('Wind X [m/s]')
-plt.ylabel('Wind Y [m/s]')
-ax = plt.gca()
-ax.axis('tight')
-plt.show()
 
 # #### Time
 
@@ -239,9 +101,9 @@ df['Year cos'] = np.cos(timestamp_s * (2 * np.pi / year))
 # In[14]:
 
 
-plt.plot(np.array(df['Day sin'])[:25])
-plt.plot(np.array(df['Day cos'])[:25])
-plt.xlabel('Time [h]')
+plt.plot(np.array(df['Day sin'])[:24*6])
+plt.plot(np.array(df['Day cos'])[:24*6])
+plt.xlabel('Time [10 min units]')
 plt.title('Time of day signal')
 plt.show()
 
@@ -254,12 +116,12 @@ plt.show()
 # In[15]:
 
 
-fft = tf.signal.rfft(df['T (degC)'])
+fft = tf.signal.rfft(df['pv1'])
 f_per_dataset = np.arange(0, len(fft))
 
-n_samples_h = len(df['T (degC)'])
-hours_per_year = 24*365.2524
-years_per_dataset = n_samples_h/(hours_per_year)
+n_samples_h = len(df['pv1'])
+tenmins_per_year = 6*24*365.2524
+years_per_dataset = n_samples_h / tenmins_per_year
 
 f_per_year = f_per_dataset/years_per_dataset
 plt.step(f_per_year, np.abs(fft))
@@ -280,6 +142,9 @@ plt.show()
 
 # In[16]:
 
+
+df.drop('Time', inplace=True, axis=1)
+df.drop('pv2', inplace=True, axis=1)
 
 column_indices = {name: i for i, name in enumerate(df.columns)}
 
@@ -309,6 +174,8 @@ train_df = (train_df - train_mean) / train_std
 val_df = (val_df - train_mean) / train_std
 test_df = (test_df - train_mean) / train_std
 
+print(train_mean.head())
+print(train_std.head())
 
 # Now, peek at the distribution of the features. Some features do have long tails, but there are no obvious errors like the `-9999` wind velocity value.
 
@@ -412,7 +279,7 @@ class WindowGenerator():
 
 
 w1 = WindowGenerator(input_width=24, label_width=1, shift=24,
-                     label_columns=['T (degC)'])
+                     label_columns=['pv1'])
 w1
 
 
@@ -420,7 +287,7 @@ w1
 
 
 w2 = WindowGenerator(input_width=6, label_width=1, shift=1,
-                     label_columns=['T (degC)'])
+                     label_columns=['pv1'])
 w2
 
 
@@ -490,7 +357,7 @@ w2.example = example_inputs, example_labels
 # In[25]:
 
 
-def plot(self, model=None, plot_col='T (degC)', max_subplots=3):
+def plot(self, model=None, plot_col='pv1', max_subplots=3):
   inputs, labels = self.example
   plt.figure(figsize=(12, 8))
   plot_col_index = self.column_indices[plot_col]
@@ -534,12 +401,12 @@ w2.plot()
 plt.show()
 
 
-# You can plot the other columns, but the example window `w2` configuration only has labels for the `T (degC)` column.
+# You can plot the other columns, but the example window `w2` configuration only has labels for the `pv1` column.
 
 # In[27]:
 
 
-w2.plot(plot_col='p (mbar)')
+w2.plot(plot_col='ta')
 plt.show()
 
 
@@ -628,7 +495,7 @@ for example_inputs, example_labels in w2.train.take(1):
 # 
 # The simplest model you can build on this sort of data is one that predicts a single feature's value—1 time step (one hour) into the future based only on the current conditions.
 # 
-# So, start by building models to predict the `T (degC)` value one hour into the future.
+# So, start by building models to predict the `pv1` value one hour into the future.
 # 
 # ![Predict the next time step](images/narrow_window.png)
 # 
@@ -639,7 +506,7 @@ for example_inputs, example_labels in w2.train.take(1):
 
 single_step_window = WindowGenerator(
     input_width=1, label_width=1, shift=1,
-    label_columns=['T (degC)'])
+    label_columns=['pv1'])
 single_step_window
 
 
@@ -684,7 +551,7 @@ class Baseline(tf.keras.Model):
 # In[35]:
 
 
-baseline = Baseline(label_index=column_indices['T (degC)'])
+baseline = Baseline(label_index=column_indices['pv1'])
 
 baseline.compile(loss=tf.losses.MeanSquaredError(),
                  metrics=[tf.metrics.MeanAbsoluteError()])
@@ -706,7 +573,7 @@ performance['Baseline'] = baseline.evaluate(single_step_window.test, verbose=0)
 
 wide_window = WindowGenerator(
     input_width=24, label_width=24, shift=1,
-    label_columns=['T (degC)'])
+    label_columns=['pv1'])
 
 wide_window
 
@@ -826,7 +693,7 @@ axis.set_xticks(range(len(train_df.columns)))
 _ = axis.set_xticklabels(train_df.columns, rotation=90)
 
 
-# Sometimes the model doesn't even place the most weight on the input `T (degC)`. This is one of the risks of random initialization. 
+# Sometimes the model doesn't even place the most weight on the input `pv1`. This is one of the risks of random initialization. 
 
 # ### Dense
 # 
@@ -871,7 +738,7 @@ conv_window = WindowGenerator(
     input_width=CONV_WIDTH,
     label_width=1,
     shift=1,
-    label_columns=['T (degC)'])
+    label_columns=['pv1'])
 
 conv_window
 
@@ -1006,7 +873,7 @@ wide_conv_window = WindowGenerator(
     input_width=INPUT_WIDTH,
     label_width=LABEL_WIDTH,
     shift=1,
-    label_columns=['T (degC)'])
+    label_columns=['pv1'])
 
 wide_conv_window
 
@@ -1101,7 +968,7 @@ metric_index = lstm_model.metrics_names.index('mean_absolute_error')
 val_mae = [v[metric_index] for v in val_performance.values()]
 test_mae = [v[metric_index] for v in performance.values()]
 
-plt.ylabel('mean_absolute_error [T (degC), normalized]')
+plt.ylabel('mean_absolute_error [pv1, normalized]')
 plt.bar(x - 0.17, val_mae, width, label='Validation')
 plt.bar(x + 0.17, test_mae, width, label='Test')
 plt.xticks(ticks=x, labels=performance.keys(),
@@ -1119,7 +986,7 @@ for name, value in performance.items():
 
 # ### Multi-output models
 # 
-# The models so far all predicted a single output feature, `T (degC)`, for a single time step.
+# The models so far all predicted a single output feature, `pv1`, for a single time step.
 # 
 # All of these models can be converted to predict multiple features just by changing the number of units in the output layer and adjusting the training windows to include all features in the `labels` (`example_labels`):
 
