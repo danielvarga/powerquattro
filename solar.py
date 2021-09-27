@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import sys
 
 # cat fot_adatok/PQ\ akku_window1_part10.csv | tr ',' '.' | sed "s/ *;/;/g" | sed "s/; */;/g" > fot_proba.csv
-# python habp.py pestszentlorinc.csv fot_proba.csv
+# python solar.py pestszentlorinc.csv fot_proba.csv
 
 met_filename, pow_filename = sys.argv[1:]
 
@@ -43,8 +43,14 @@ plt.show()
 
 
 plt.scatter(pow_data['TREND_AKKUBANK_PV1_P'], pow_data['TREND_AKKUBANK_PV2_P'], c=range(len(pow_data)))
+plt.title("1 vs 2 naperőmű teljesítmény")
 plt.show()
 
 
-plt.scatter(met_data['sr'], met_data['suv'])
+plt.scatter(met_data['ta'], met_data['sr'], c=range(len(met_data)))
+plt.title("hőmérséklet vs globálsugárzás")
+plt.show()
+
+plt.scatter(met_data['sr'], met_data['suv'], c=range(len(met_data)))
+plt.title("globálsugárzás vs UV-sugárzás")
 plt.show()
