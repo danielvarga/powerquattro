@@ -41,6 +41,15 @@ date_time = pd.to_datetime(df['Time'], format='%Y-%m-%d %H:%M:%S') # 2021-01-01 
 print(df.head())
 
 
+from mpl_toolkits.mplot3d import Axes3D
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+n = 20000
+ax.scatter(df['ta'][:n], df['sr'][:n], df['pv1'][:n], s=20, alpha=0.1)
+plt.show()
+
+
+
 # Here is the evolution of a few features over time:
 
 # In[6]:
@@ -60,6 +69,7 @@ plot_features = df[plot_cols][:480]
 plot_features.index = date_time[:480]
 _ = plot_features.plot(subplots=True)
 plt.show()
+
 
 # ### Inspect and cleanup
 
@@ -144,7 +154,6 @@ plt.show()
 
 
 df.drop('Time', inplace=True, axis=1)
-df.drop('pv2', inplace=True, axis=1)
 
 column_indices = {name: i for i, name in enumerate(df.columns)}
 
@@ -154,6 +163,7 @@ val_df = df[int(n*0.7):int(n*0.9)]
 test_df = df[int(n*0.9):]
 
 num_features = df.shape[1]
+
 
 
 # ### Normalize the data

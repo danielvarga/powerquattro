@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# cat fot_adatok/PQ\ akku_window1_part10.csv | tr ',' '.' | sed "s/ *;/;/g" | sed "s/; */;/g" > fot_proba.csv
-# ( cat fot_adatok/PQ\ akku_window1_part102.csv | head -1 ; for ((i=101; i>=0; --i)) ; do cat fot_adatok/PQ\ akku_window1_part$i.csv | tail -n +2 ; done ) | tr ',' '.' | sed "s/ *;/;/g" | sed "s/; */;/g" > fot_full.csv
-# -> this is a bit unsorted on two dates 2019-10-25 and 2019-10-27, that's in fot_adatok/PQ akku_window1_part88.csv . only there.
-# -> after this was done, i've manually deleted a space from the header of fot_full.csv, right after TREND_AKKUBANK_PV2_P
+#  ( cat fot_adatok/PQ\ akku_window1_part102.csv | head -1 ; ( for ((i=101; i>=0; --i)) ; do cat fot_adatok/PQ\ akku_window1_part$i.csv | tail -n +2 ; done | sort ) ) | tr -d '\r' | tr ',' '.' | sed "s/ *;/;/g" | sed "s/; */;/g" | sed "s/ *$//g" > fot_full.csv
+# -> the compication with sort is because it is a bit unsorted on
+# two dates 2019-10-25 and 2019-10-27,
+# that's in fot_adatok/PQ akku_window1_part88.csv . only there.
 # python join.py pestszentlorinc.csv fot_full.csv fot_meteo.csv
 
 import sys
@@ -19,7 +19,7 @@ met_filename, pow_filename, joined_filename = sys.argv[1:]
 
 met_data = pd.read_csv(met_filename, sep=';', skipinitialspace=True)
 
-pow_data = pd.read_csv(pow_filename, sep=';', skipinitialspace=True)
+pow_data = pd.read_csv(pow_filename, sep=';', skipinitialspace=True, na_values='n/a')
 
 met_data['Time'] = pd.to_datetime(met_data['Time'], format='%Y%m%d%H%M')
 met_data = met_data.set_index('Time')
