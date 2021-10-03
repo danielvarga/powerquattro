@@ -83,28 +83,54 @@ keep = ~ np.isnan(Y).any(axis=1)
 X = X[keep, :]
 Y = Y[keep, :]
 
+# random shuffle!!!
+perm = np.random.permutation(len(X))
+X = X[perm]
+Y = Y[perm]
 
-X_train = X[::2]
-Y_train = Y[::2]
-X_test = X[1::2]
-Y_test = Y[1::2]
+# Y = Y[:, 0]
+
+n = len(X)
+X_train = X[:n // 2]
+Y_train = Y[:n // 2]
+X_test = X[n // 2:]
+Y_test = Y[n // 2:]
+
+
+'''
+import sklearn.ensemble
+reg = sklearn.ensemble.GradientBoostingRegressor()
+reg.fit(X_train, Y_train)
+Y_predict = reg.predict(X_test)
+rmse = ((Y_test - Y_predict) ** 2).mean() ** 0.5
+mae = (np.abs(Y_test - Y_predict)).mean()
+print("GBR on test: rmse", rmse, "mae", mae)
+'''
 
 
 model = Sequential()
 input_shape = (len(indeps), )
 output_dim = 2 # 'pv1', 'pv2'
-hidden_dim = 50
+hidden_dim = 100 # 50
 model.add(Dense(hidden_dim, input_shape=input_shape, activation='relu'))
 model.add(Dense(hidden_dim, activation='relu'))
 model.add(Dense(hidden_dim, activation='relu'))
 model.add(Dense(output_dim, activation='linear'))
-model.compile(loss='mse', optimizer=keras.optimizers.Adam(learning_rate=0.01))
+model.compile(loss=keras.losses.MeanAbsoluteError(), optimizer=keras.optimizers.Adam(learning_rate=0.001), metrics=[keras.losses.MeanSquaredError()])
+
+plt.hist(Y_train[:, 0])
+plt.show()
+plt.hist(Y_train[:, 1])
+plt.show()
 
 
 model.fit(X_train, Y_train, epochs=200, batch_size=50, verbose=1, validation_split=0.2)
 
 Y_predict = model.predict(X_test)
 
+rmse = ((Y_test - Y_predict) ** 2).mean() ** 0.5
+mae = (np.abs(Y_test - Y_predict)).mean()
+print("MLP on test: rmse", rmse, "mae", mae)
 
 from mpl_toolkits.mplot3d import Axes3D
 fig = plt.figure()
@@ -122,3 +148,10 @@ def plot(x, y):
 plot(X_test, Y_test)
 plot(X_test, Y_predict)
 plt.show()
+
+
+for i in range(len(indeps)):
+    plt.scatter(X_test[:, i], Y_test[:, 0])
+    plt.scatter(X_test[:, i], Y_predict[:, 0])
+    plt.title(indeps[i] + ' vs pv1')
+    plt.show()
