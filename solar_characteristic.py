@@ -87,16 +87,25 @@ Y = Y[keep, :]
 perm = np.random.permutation(len(X))
 X = X[perm]
 Y = Y[perm]
+n = len(X)
+
+rmse = ((Y[n // 2:, 1] - Y[n // 2:, 0]) ** 2).mean() ** 0.5
+mae = (np.abs(Y[n // 2:, 1] - Y[n // 2:, 0])).mean()
+print("'pv1=pv2' baseline on test: rmse", rmse, "mae", mae)
+
 
 # only pv1 from now on!!!
 Y = Y[:, 0]
 
-n = len(X)
 X_train = X[:n // 2]
 Y_train = Y[:n // 2]
 X_test = X[n // 2:]
 Y_test = Y[n // 2:]
 
+
+rmse = ((Y_test[1:] - Y_test[:-1]) ** 2).mean() ** 0.5
+mae = (np.abs(Y_test[1:] - Y_test[:-1])).mean()
+print("'repeat last' baseline on test: rmse", rmse, "mae", mae)
 
 import sklearn.ensemble
 reg = sklearn.ensemble.GradientBoostingRegressor(loss='lad')
