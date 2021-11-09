@@ -12,6 +12,18 @@ from sklearn.svm import SVR
 import matplotlib.pyplot as plt
 import seaborn
 
+prefix = "simple_consumption_prediction"
+
+suffix = 1
+
+
+def save_and_show():
+    global suffix
+    plt.savefig(f"{prefix}-{suffix:02}.png", dpi=600)
+    # plt.show()
+    plt.clf()
+    suffix += 1
+
 
 def regression_results(y_true, y_pred):
     # Regression metrics
@@ -38,19 +50,28 @@ def regression_results(y_true, y_pred):
 # Hungarian dataset
 data = pd.read_csv("terheles_fixed.tsv", sep="\t")
 
+
+'''
+# verify that Ad hatasos [kwh] is simply hatasos teljesitmeny / 4.
+plt.scatter(data['Ad Hatásos [kWh]'][:1000], data['Hatásos teljesítmény'][:1000])
+plt.show()
+'''
+
 data['Date'] = pd.to_datetime(data['Korrigált időpont'])
 data = data.set_index('Date')
 c = data['Consumption'] = data['Hatásos teljesítmény']
 
 
-'''
+plt.title("15 minutes consumption distribution, kW")
 seaborn.violinplot(c)
-plt.show()
+save_and_show()
+
 
 n = len(c)
 
+plt.title("Consumption, kW")
 plt.plot(c[:1000])
-plt.show()
+save_and_show()
 
 
 fft = np.fft.rfft(c)
@@ -64,10 +85,11 @@ f_per_year = f_per_dataset/years_per_dataset
 plt.step(f_per_year, np.abs(fft))
 plt.xscale('log')
 plt.xlim([0.1, max(plt.xlim())])
+plt.ylim([0, 1e6])
 plt.xticks([1, 52.1789, 365.2524], labels=['1/Year', '1/week', '1/day'])
 _ = plt.xlabel('Frequency (log scale)')
-plt.show()
-'''
+plt.title("Fourier spectrum of comsumption time series")
+save_and_show()
 
 
 # creating new dataframe from consumption column
@@ -101,32 +123,32 @@ for name, model in models:
     # TimeSeries Cross validation
     tscv = TimeSeriesSplit(n_splits=2)
 
-    cv_results = cross_val_score(model, X_train, y_train, cv=tscv, scoring='r2')
+    cv_results = cross_val_score(model, X_test, y_test, cv=tscv, scoring='r2')
     results.append(cv_results)
     names.append(name)
     print('%s: %f (%f)' % (name, cv_results.mean(), cv_results.std()))
-    if name == 'NN':
+    if True: # name == 'NN':
         model.fit(X_train, y_train)
         y_true = y_train.values
         y_pred = model.predict(X_train)
         plt.plot(y_true[1000:2000])
         plt.plot(y_pred[1000:2000])
-        plt.title("In sample forecast")
+        plt.title(f"In sample forecast, model {name}")
         plt.xlabel("Date")
         plt.ylabel("Consumption")
-        plt.show()
+        save_and_show()
 
 
         y_true = y_test.values
         y_pred = model.predict(X_test)
         plt.plot(y_true[1000:2000])
         plt.plot(y_pred[1000:2000])
-        plt.title("Out of sample forecast")
+        plt.title(f"Out of sample forecast, model {name}")
         plt.xlabel("Date")
         plt.ylabel("Consumption")
-        plt.show()
+        save_and_show()
 
 # Compare Algorithms
 plt.boxplot(results, labels=names)
 plt.title('Algorithm Comparison')
-plt.show()
+save_and_show()

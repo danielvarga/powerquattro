@@ -3,12 +3,27 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
+# python solar_characteristic.py fot_meteo.csv
+
 
 # met columns:
 # sg: 'gamma dózis'
 # sr: 'globálsugárzás'
 # suv: 'UV-sugárzás'
 # ta: 'hőmérséklet'
+
+
+prefix = "solar_characteristic"
+
+suffix = 1
+
+
+def save_and_show():
+    global suffix
+    plt.savefig(f"{prefix}-{suffix:02}.png", dpi=600)
+    # plt.show()
+    plt.clf()
+    suffix += 1
 
 
 csv_path, = sys.argv[1:]
@@ -54,7 +69,7 @@ print(plot_features['pv2'].head())
 
 _ = plot_features.plot(subplots=True)
 
-plt.show()
+save_and_show()
 
 
 from mpl_toolkits.mplot3d import Axes3D
@@ -62,7 +77,7 @@ fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
 n = 20000
 ax.scatter(df['ta'][:n], df['sr'][:n], df['pv1'][:n], s=20, alpha=0.1)
-plt.show()
+save_and_show()
 '''
 
 
@@ -140,7 +155,7 @@ fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
 
 def plot(x, y):
-    target_n = 10000
+    target_n = 2000
     if len(x) > target_n:
         keep = np.random.choice(len(x), size=target_n, replace=False)
         x = x[keep]
@@ -150,11 +165,11 @@ def plot(x, y):
 
 plot(X_test, Y_test)
 plot(X_test, Y_predict)
-plt.show()
+save_and_show()
 
 
 for i in range(len(indeps)):
     plt.scatter(X_test[:, i], Y_test)
     plt.scatter(X_test[:, i], Y_predict)
     plt.title(indeps[i] + ' vs pv1')
-    plt.show()
+    save_and_show()

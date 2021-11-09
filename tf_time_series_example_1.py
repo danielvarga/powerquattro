@@ -19,6 +19,21 @@ import pandas as pd
 import seaborn as sns
 import tensorflow as tf
 
+
+prefix = "tensorflow_time"
+
+suffix = 1
+
+
+def save_and_show():
+    global suffix
+    plt.savefig(f"{prefix}-{suffix:02}.png", dpi=600)
+    # plt.show()
+    plt.clf()
+    suffix += 1
+
+
+
 mpl.rcParams['figure.figsize'] = (8, 6)
 mpl.rcParams['axes.grid'] = False
 
@@ -46,7 +61,7 @@ fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
 n = 20000
 ax.scatter(df['ta'][:n], df['sr'][:n], df['pv1'][:n], s=20, alpha=0.1)
-plt.show()
+save_and_show()
 
 
 
@@ -68,7 +83,7 @@ _ = plot_features.plot(subplots=True)
 plot_features = df[plot_cols][:480]
 plot_features.index = date_time[:480]
 _ = plot_features.plot(subplots=True)
-plt.show()
+save_and_show()
 
 
 # ### Inspect and cleanup
@@ -79,7 +94,7 @@ plt.show()
 
 
 df.describe().transpose()
-plt.show()
+save_and_show()
 
 
 # #### Time
@@ -115,7 +130,7 @@ plt.plot(np.array(df['Day sin'])[:24*6])
 plt.plot(np.array(df['Day cos'])[:24*6])
 plt.xlabel('Time [10 min units]')
 plt.title('Time of day signal')
-plt.show()
+save_and_show()
 
 
 # This gives the model access to the most important frequency features. In this case you knew ahead of time which frequencies were important. 
@@ -140,7 +155,7 @@ plt.ylim(0, 400000)
 plt.xlim([0.1, max(plt.xlim())])
 plt.xticks([1, 365.2524], labels=['1/Year', '1/day'])
 _ = plt.xlabel('Frequency (log scale)')
-plt.show()
+save_and_show()
 
 
 # ### Split the data
@@ -154,6 +169,10 @@ plt.show()
 
 
 df.drop('Time', inplace=True, axis=1)
+
+df['pv1'] = df['pv1'].fillna(0)
+df['pv2'] = df['pv2'].fillna(0)
+
 
 column_indices = {name: i for i, name in enumerate(df.columns)}
 
@@ -197,7 +216,7 @@ df_std = df_std.melt(var_name='Column', value_name='Normalized')
 plt.figure(figsize=(12, 6))
 ax = sns.violinplot(x='Column', y='Normalized', data=df_std)
 _ = ax.set_xticklabels(df.keys(), rotation=90)
-plt.show()
+save_and_show()
 
 
 # ## Data windowing
@@ -408,7 +427,7 @@ WindowGenerator.plot = plot
 
 
 w2.plot()
-plt.show()
+save_and_show()
 
 
 # You can plot the other columns, but the example window `w2` configuration only has labels for the `pv1` column.
@@ -417,7 +436,7 @@ plt.show()
 
 
 w2.plot(plot_col='ta')
-plt.show()
+save_and_show()
 
 
 # ### 4. Create `tf.data.Dataset`s
@@ -605,7 +624,7 @@ print('Output shape:', baseline(wide_window.example[0]).shape)
 
 
 wide_window.plot(baseline)
-plt.show()
+save_and_show()
 
 
 # In the above plots of three examples the single step model is run over the course of 24 hours. This deserves some explanation:
@@ -687,7 +706,7 @@ print('Output shape:', baseline(wide_window.example[0]).shape)
 
 
 wide_window.plot(linear)
-plt.show()
+save_and_show()
 
 
 # One advantage to linear models is that they're relatively simple to  interpret.
@@ -758,7 +777,7 @@ conv_window
 
 conv_window.plot()
 plt.title("Given 3 hours of inputs, predict 1 hour into the future.")
-plt.show()
+save_and_show()
 
 
 # You could train a `dense` model on a multiple-input-step window by adding a `tf.keras.layers.Flatten` as the first layer of the model:
@@ -903,7 +922,7 @@ print('Output shape:', conv_model(wide_conv_window.example[0]).shape)
 
 
 wide_conv_window.plot(conv_model)
-plt.show()
+save_and_show()
 
 
 # ### Recurrent neural network
@@ -961,7 +980,7 @@ performance['LSTM'] = lstm_model.evaluate(wide_window.test, verbose=0)
 
 
 wide_window.plot(lstm_model)
-plt.show()
+save_and_show()
 
 
 # ### Performance
@@ -984,7 +1003,7 @@ plt.bar(x + 0.17, test_mae, width, label='Test')
 plt.xticks(ticks=x, labels=performance.keys(),
            rotation=45)
 _ = plt.legend()
-plt.show()
+save_and_show()
 
 
 # In[66]:
@@ -1161,7 +1180,7 @@ plt.xticks(ticks=x, labels=performance.keys(),
            rotation=45)
 plt.ylabel('MAE (average over all outputs)')
 _ = plt.legend()
-plt.show()
+save_and_show()
 
 
 # In[76]:
@@ -1203,7 +1222,7 @@ multi_window = WindowGenerator(input_width=24,
 
 multi_window.plot()
 multi_window
-plt.show()
+save_and_show()
 
 
 # ### Baselines
@@ -1229,7 +1248,7 @@ multi_performance = {}
 multi_val_performance['Last'] = last_baseline.evaluate(multi_window.val)
 multi_performance['Last'] = last_baseline.evaluate(multi_window.test, verbose=0)
 multi_window.plot(last_baseline)
-plt.show()
+save_and_show()
 
 
 # Since this task is to predict 24 hours into the future, given 24 hours of the past, another simple approach is to repeat the previous day, assuming tomorrow will be similar:
@@ -1250,7 +1269,7 @@ repeat_baseline.compile(loss=tf.losses.MeanSquaredError(),
 multi_val_performance['Repeat'] = repeat_baseline.evaluate(multi_window.val)
 multi_performance['Repeat'] = repeat_baseline.evaluate(multi_window.test, verbose=0)
 multi_window.plot(repeat_baseline)
-plt.show()
+save_and_show()
 
 
 # ### Single-shot models
@@ -1284,7 +1303,7 @@ history = compile_and_fit(multi_linear_model, multi_window)
 multi_val_performance['Linear'] = multi_linear_model.evaluate(multi_window.val)
 multi_performance['Linear'] = multi_linear_model.evaluate(multi_window.test, verbose=0)
 multi_window.plot(multi_linear_model)
-plt.show()
+save_and_show()
 
 
 # #### Dense
@@ -1312,7 +1331,7 @@ history = compile_and_fit(multi_dense_model, multi_window)
 multi_val_performance['Dense'] = multi_dense_model.evaluate(multi_window.val)
 multi_performance['Dense'] = multi_dense_model.evaluate(multi_window.test, verbose=0)
 multi_window.plot(multi_dense_model)
-plt.show()
+save_and_show()
 
 
 # #### CNN
@@ -1342,7 +1361,7 @@ history = compile_and_fit(multi_conv_model, multi_window)
 multi_val_performance['Conv'] = multi_conv_model.evaluate(multi_window.val)
 multi_performance['Conv'] = multi_conv_model.evaluate(multi_window.test, verbose=0)
 multi_window.plot(multi_conv_model)
-plt.show()
+save_and_show()
 
 
 # #### RNN
@@ -1373,7 +1392,7 @@ history = compile_and_fit(multi_lstm_model, multi_window)
 multi_val_performance['LSTM'] = multi_lstm_model.evaluate(multi_window.val)
 multi_performance['LSTM'] = multi_lstm_model.evaluate(multi_window.test, verbose=0)
 multi_window.plot(multi_lstm_model)
-plt.show()
+save_and_show()
 
 
 # ### Advanced: Autoregressive model
@@ -1501,7 +1520,7 @@ history = compile_and_fit(feedback_model, multi_window)
 multi_val_performance['AR LSTM'] = feedback_model.evaluate(multi_window.val)
 multi_performance['AR LSTM'] = feedback_model.evaluate(multi_window.test, verbose=0)
 multi_window.plot(feedback_model)
-plt.show()
+save_and_show()
 
 
 # ### Performance
@@ -1525,7 +1544,7 @@ plt.xticks(ticks=x, labels=multi_performance.keys(),
            rotation=45)
 plt.ylabel(f'MAE (average over all times and outputs)')
 _ = plt.legend()
-plt.show()
+save_and_show()
 
 
 # The metrics for the multi-output models in the first half of this tutorial show the performance averaged across all output features. These performances are similar but also averaged across output time steps. 
