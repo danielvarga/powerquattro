@@ -5,6 +5,7 @@
 import datetime
 import inspect
 import os
+import sys
 
 # scientific python add-ons
 import numpy as np
@@ -18,6 +19,26 @@ import matplotlib as mpl
 # finally, we import the pvlib library
 from pvlib import solarposition, irradiance, atmosphere, pvsystem, inverter, temperature
 from pvlib.forecast import GFS, NAM, NDFD, RAP, HRRR
+
+
+
+met_filename, pow_filename = sys.argv[1:]
+
+met_data = pd.read_csv(met_filename, sep=';', skipinitialspace=True)
+
+pow_data = pd.read_csv(pow_filename, sep=';', skipinitialspace=True)
+
+met_data['Time'] = pd.to_datetime(met_data['Time'], format='%Y%m%d%H%M')
+met_data = met_data.set_index('Time')
+
+pow_data['Time'] = (pow_data['DATE'] + ' ' + pow_data['TIME']).str.strip()
+pow_data['Time'] = pd.to_datetime(pow_data['Time'], format='%Y. %m. %d %H:%M:%S') # 2021. 04. 20;02:02:00
+pow_data['Time'] = pow_data['Time'] - pd.DateOffset(hours=2)
+pow_data = pow_data.set_index('Time')
+
+
+
+
 
 # Choose a location.
 # Tucson, AZ
