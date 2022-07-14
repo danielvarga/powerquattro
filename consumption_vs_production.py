@@ -16,7 +16,56 @@ prod = prod[['Time', 'TREND_AKKUBANK_PV1_P', 'TREND_AKKUBANK_PV2_P']]
 
 prod = prod.rename({'TREND_AKKUBANK_PV1_P': 'pv1', 'TREND_AKKUBANK_PV2_P': 'pv2'}, axis='columns')
 
-prod[prod['pv1'] == np.nan]['pv1'] = 0
+
+daily_aggregate = prod.groupby(pd.Grouper(key='Time', freq='D')).sum()
+plt.hist(daily_aggregate['pv1'], bins=100)
+plt.xlabel('Power output in some unknown dimension')
+plt.ylabel('Number of days with output in that range')
+plt.show()
+
+
+month_to_season = np.array([
+    None,
+    'Winter', 'Winter',
+    'Spring', 'Spring', 'Spring',
+    'Summer', 'Summer', 'Summer',
+    'Autumn', 'Autumn', 'Autumn',
+    'Winter'
+])
+
+season_order = ['Spring', 'Summer', 'Autumn', 'Winter']
+
+daily_aggregate['season'] = month_to_season[daily_aggregate.index.month]
+
+
+seasons_aggregate = daily_aggregate.groupby('season').sum()
+print(seasons_aggregate)
+
+
+grouped = []
+labels = []
+
+
+for season in season_order:
+    grouped.append(daily_aggregate.groupby('season').get_group(season)['pv1'].to_numpy())
+
+plt.hist(grouped, histtype='bar', stacked=True, bins=50, label=season_order)
+plt.legend()
+plt.xlabel('Power output in some unknown dimension')
+plt.ylabel('Number of days with output in that range, colored by season')
+plt.show()
+
+
+for season in season_order:
+    pv1 = daily_aggregate.groupby('season').get_group(season)['pv1'].to_numpy()
+    plt.hist(pv1, bins=50)
+    plt.xlim((0, daily_aggregate['pv1'].max()))
+    plt.title(season)
+    plt.show()
+
+
+exit()
+
 
 # date_time -= pd.to_timedelta('365 days')
 # date_time -= pd.to_timedelta('365 days')
