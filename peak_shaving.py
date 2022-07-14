@@ -136,11 +136,14 @@ def simulator(demand_series):
 
     funds_saved = funds_spent_counterfactually_series.sum() - funds_spent_series.sum()
     n = 2000
-    plt.plot(demand_series.to_numpy()[:n], label='Demand')
+    plt.plot(demand_series.to_numpy()[:n], label='Demand', linewidth=2.5)
     plt.plot(consumption_from_network_series[:n], label='Demand served by network')
     plt.plot(consumption_from_bess_series[:n], label='Demand served by BESS')
     plt.plot(charge_of_bess_series[:n], label='Consumption of BESS')
+    plt.plot((consumption_from_network_series + charge_of_bess_series)[:n], label='Demand plus BESS served by network')
+
     plt.legend()
+    plt.xlim((1200, 1200+7*24*4))
     plt.show()
     # save_and_show()
     return funds_saved
