@@ -19,18 +19,35 @@ PATH_PREFIX = "./"
 matplotlib.rcParams['figure.figsize'] = [12, 8]
 
 
-#@title ### Preprocessing meteorologic data
-met_data = pd.read_csv(PATH_PREFIX + 'PL_44527.19-21.csv', sep=';', skipinitialspace=True, na_values='n/a', skiprows=[0, 1, 2, 3, 4])
-met_data['Time'] = met_data['Time'].astype(str)
-date_time = met_data['Time'] = pd.to_datetime(met_data['Time'], format='%Y%m%d%H%M')
-met_data = met_data.set_index('Time')
+START = f"2021-01-01"
+END = f"2022-01-01"
 
 
-#@title ### Preprocessing consumption data
-cons_data = pd.read_csv(PATH_PREFIX + 'pq_terheles_2021_adatok.tsv', sep='\t', skipinitialspace=True, na_values='n/a', decimal=',')
-cons_data['Time'] = pd.to_datetime(cons_data['Korrigált időpont'], format='%m/%d/%y %H:%M')
-cons_data = cons_data.set_index('Time')
-cons_data['Consumption'] = cons_data['Hatásos teljesítmény [kW]']
+def read_datasets():
+    #@title ### Preprocessing meteorologic data
+    met_data = pd.read_csv(PATH_PREFIX + 'PL_44527.19-21.csv', sep=';', skipinitialspace=True, na_values='n/a', skiprows=[0, 1, 2, 3, 4])
+    met_data['Time'] = met_data['Time'].astype(str)
+    date_time = met_data['Time'] = pd.to_datetime(met_data['Time'], format='%Y%m%d%H%M')
+    met_data = met_data.set_index('Time')
+
+
+    #@title ### Preprocessing consumption data
+    cons_data = pd.read_csv(PATH_PREFIX + 'pq_terheles_2021_adatok.tsv', sep='\t', skipinitialspace=True, na_values='n/a', decimal=',')
+    cons_data['Time'] = pd.to_datetime(cons_data['Korrigált időpont'], format='%m/%d/%y %H:%M')
+    cons_data = cons_data.set_index('Time')
+    cons_data['Consumption'] = cons_data['Hatásos teljesítmény [kW]']
+
+    # consumption data is at 14 29 44 59 minutes, we move it by 1 minute
+    # to sync it with production data:
+    cons_data.index = cons_data.index + pd.DateOffset(minutes=1)
+
+    met_2021_data = met_data[(met_data.index >= START) & (met_data.index < END)]
+    cons_2021_data = cons_data[(cons_data.index >= START) & (cons_data.index < END)]
+
+    return met_2021_data, cons_2021_data
+
+
+met_2021_data, cons_2021_data = read_datasets()
 
 
 #@title # Solar parameters
@@ -77,23 +94,13 @@ energy_loss = 0.1 #@param {type:"number"}
 bess_capacity = bess_nominal_capacity * voltage / 1000 # kWh. (Ah*V = Wh)
 
 
-sr = met_data['sr']
+sr = met_2021_data['sr']
+
 nop_total = sr * solar_cell_num * solar_efficiency * NOCT / NOCT_irradiation / 1e3
 nop_total = nop_total.clip(0)
-met_data['Production'] = nop_total
+met_2021_data['Production'] = nop_total
 
 
-cons_fixed_data = cons_data.copy()
-
-# consumption data is at 14 29 44 59 minutes, we move it by 1 minute
-# to sync it with production data:
-cons_fixed_data.index = cons_data.index + pd.DateOffset(minutes=1)
-
-start = f"2021-01-01"
-end = f"2022-01-01"
-met_2021_data = met_data[(met_data.index >= start) & (met_data.index < end)]
-cons_2021_data = cons_fixed_data[(cons_fixed_data.index >= start) & (cons_fixed_data.index < end)]
-cons_2021_data.head()
 applicable = 24*60*365 - 15 + 5
 #applicable = 24*60*6 - 15 + 5
 
@@ -106,12 +113,10 @@ production_f = interp1d(range(0, 365*24*60, 10), met_2021_data['Production'])
 #production_f = interp1d(range(0, 6*24*60, 10), met_2021_data['Production'])
 production_interp = production_f(range(0, applicable, 5))
 
-all_2021_datetimeindex = pd.date_range(start=start, end=end, freq='5min')[:len(production_interp)]
+all_2021_datetimeindex = pd.date_range(start=START, end=END, freq='5min')[:len(production_interp)]
 
 all_2021_data = pd.DataFrame({'Consumption': demand_interp, 'Production': production_interp})
 all_2021_data = all_2021_data.set_index(all_2021_datetimeindex)
-
-print(all_2021_data.head())
 
 
 
