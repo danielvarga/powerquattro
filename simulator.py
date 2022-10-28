@@ -1,6 +1,7 @@
 # port of
 # https://colab.research.google.com/drive/1PJgcJ4ly7x5GuZy344eJeYSODo8trbM4#scrollTo=39F2u-4hvwLU
 
+from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 
@@ -47,80 +48,53 @@ def read_datasets():
     return met_2021_data, cons_2021_data
 
 
-met_2021_data, cons_2021_data = read_datasets()
+@dataclass
+class Parameters:
+    solar_cell_num: float = 114 # units
+    solar_efficiency: float = 0.93 * 0.96 # [dimensionless]
+    NOCT: float = 280 # [W]
+    NOCT_irradiation: float = 800 # [W/m^2]
+
+    bess_nominal_capacity: float = 330 # [Ah]
+    bess_charge: float = 50 # [kW]
+    bess_discharge: float = 60 # [kW]
+    voltage: float = 600 # [V]
+    maximal_depth_of_discharge: float = 0.75 # [dimensionless]
+    energy_loss: float = 0.1 # [dimensionless]
+
+    @property
+    def bess_capacity(self):
+        return self.bess_nominal_capacity * self.voltage / 1000
 
 
-#@title # Solar parameters
+# mutates met_2021_data
+def add_production_field(met_2021_data, parameters):
+    sr = met_2021_data['sr']
 
-#@markdown ---
-solar_cell_num = 114 #@param {type:"number"}
-
-# [dimensionless]
-solar_efficiency = 0.93 * 0.96
-#@markdown ---
-#@markdown NOCT in [W]:
-NOCT = 280 #@param {type:"number"}
-#@markdown ---
-#@markdown Irradiation in [W/m^2]:
-NOCT_irradiation = 800 #@param {type:"number"}
+    nop_total = sr * parameters.solar_cell_num * parameters.solar_efficiency * parameters.NOCT / parameters.NOCT_irradiation / 1e3
+    nop_total = nop_total.clip(0)
+    met_2021_data['Production'] = nop_total
 
 
-#@title BESS parameters
+def interpolate_and_join(met_2021_data, cons_2021_data):
+    applicable = 24*60*365 - 15 + 5
 
-# TODO totally unrealistic, just to see something meaningful.
-#@markdown ---
-#@markdown BESS nominal capacity in [Ah]:
-bess_nominal_capacity = 330 #@param {type:"number"}
+    demand_f = interp1d(range(0, 365*24*60, 15), cons_2021_data['Consumption'])
+    #demand_f = interp1d(range(0, 6*24*60, 15), cons_2021_data['Consumption'])
+    demand_interp = demand_f(range(0, applicable, 5))
 
-# TODO totally unrealistic, just to see something meaningful.
-#@markdown ---
-#@markdown BESS charge in [kW]:
-bess_charge = 50 #@param {type:"number"}
-#@markdown ---
+    production_f = interp1d(range(0, 365*24*60, 10), met_2021_data['Production'])
+    #production_f = interp1d(range(0, 6*24*60, 10), met_2021_data['Production'])
+    production_interp = production_f(range(0, applicable, 5))
 
-#@markdown ---
-#@markdown BESS charge in [kW]:
-bess_discharge = 60 #@param {type:"number"}
-#@markdown ---
+    all_2021_datetimeindex = pd.date_range(start=START, end=END, freq='5min')[:len(production_interp)]
 
-# [V]
-voltage = 600 #@param {type:"number"}
-
-# [dimensionless]
-maximal_depth_of_discharge = 0.75 #@param {type:"number"}
-# [dimensionless]
-energy_loss = 0.1 #@param {type:"number"}
-
-bess_capacity = bess_nominal_capacity * voltage / 1000 # kWh. (Ah*V = Wh)
+    all_2021_data = pd.DataFrame({'Consumption': demand_interp, 'Production': production_interp})
+    all_2021_data = all_2021_data.set_index(all_2021_datetimeindex)
+    return all_2021_data
 
 
-sr = met_2021_data['sr']
-
-nop_total = sr * solar_cell_num * solar_efficiency * NOCT / NOCT_irradiation / 1e3
-nop_total = nop_total.clip(0)
-met_2021_data['Production'] = nop_total
-
-
-applicable = 24*60*365 - 15 + 5
-#applicable = 24*60*6 - 15 + 5
-
-
-demand_f = interp1d(range(0, 365*24*60, 15), cons_2021_data['Consumption'])
-#demand_f = interp1d(range(0, 6*24*60, 15), cons_2021_data['Consumption'])
-demand_interp = demand_f(range(0, applicable, 5))
-
-production_f = interp1d(range(0, 365*24*60, 10), met_2021_data['Production'])
-#production_f = interp1d(range(0, 6*24*60, 10), met_2021_data['Production'])
-production_interp = production_f(range(0, applicable, 5))
-
-all_2021_datetimeindex = pd.date_range(start=START, end=END, freq='5min')[:len(production_interp)]
-
-all_2021_data = pd.DataFrame({'Consumption': demand_interp, 'Production': production_interp})
-all_2021_data = all_2021_data.set_index(all_2021_datetimeindex)
-
-
-
-def simulator_with_solar(all_data):
+def simulator_with_solar(all_data, parameters):
     
     demand_np = all_data['Consumption'].to_numpy()
     production_np = all_data['Production'].to_numpy()
@@ -145,10 +119,10 @@ def simulator_with_solar(all_data):
     #Remark from Jutka
     #For the sake of simplicity 0<= soc <=1
     #soc = 1 - maximal_depth_of_discharge
-    #and will use only  maximal_depth_of_discharge percent of the real batery capacity
+    #and will use only  maximal_depth_of_discharge percent of the real battery capacity
     soc = 0
-    max_cap_of_batery=bess_capacity * maximal_depth_of_discharge
-    cap_of_batery = soc * max_cap_of_batery
+    max_cap_of_battery = parameters.bess_capacity * parameters.maximal_depth_of_discharge
+    cap_of_battery = soc * max_cap_of_battery
 
     time_interval = step_in_minutes / 60 # amount of time step in hours
     for i, (demand, production) in enumerate(zip(demand_np, production_np)):
@@ -211,9 +185,9 @@ def simulator_with_solar(all_data):
                     #          consumption_from_network = unsatisfied_demand
                     #          unsatisfied_demand = 0
                   
-                    #Remarks: batery capacity is limited!
+                    #Remarks: battery capacity is limited!
                    
-                     if cap_of_batery >= unsatisfied_demand * time_interval :
+                     if cap_of_battery >= unsatisfied_demand * time_interval :
                      
                        #discharge_of_bess = min ( unsatisfied_demand, bess_discharge )
                        #discharge = discharge_of_bess
@@ -221,16 +195,16 @@ def simulator_with_solar(all_data):
                        consumption_from_bess = unsatisfied_demand 
                        #unsatisfied_demand -= consumption_from_bess
                        unsatisfied_demand = 0
-                       cap_of_batery -= consumption_from_bess * time_interval
-                       soc = cap_of_batery / max_cap_of_batery
+                       cap_of_battery -= consumption_from_bess * time_interval
+                       soc = cap_of_battery / max_cap_of_battery
                        
                      else:
-                      #discharge_of_bess = cap_of_batery /time_interval
+                      #discharge_of_bess = cap_of_battery /time_interval
                       #discharge = min( bess_discharge, discharge_of_bess )
-                      consumption_from_bess = cap_of_batery / time_interval
+                      consumption_from_bess = cap_of_battery / time_interval
                       unsatisfied_demand -= consumption_from_bess
-                      cap_of_batery -=consumption_from_bess * time_interval
-                      soc = cap_of_batery / max_cap_of_batery
+                      cap_of_battery -=consumption_from_bess * time_interval
+                      soc = cap_of_battery / max_cap_of_battery
                       consumption_from_network = unsatisfied_demand
                       unsatisfied_demand = 0 
                     #bess_sacrifice = consumption_from_bess / (1 - energy_loss) # kW
@@ -255,11 +229,11 @@ def simulator_with_solar(all_data):
                 if is_battery_chargeable:
                     charge_of_bess =  remaining_production
                     energy = charge_of_bess * time_interval # kWh
-                    #Remarks: batery alowed to charge until its capacity maximum
-                    #energy_charge = min(energy, max_cap_of_batery-cap_of_batery)
-                    cap_of_batery += energy
+                    #Remarks: battery alowed to charge until its capacity maximum
+                    #energy_charge = min(energy, max_cap_of_battery-cap_of_battery)
+                    cap_of_battery += energy
                     #soc += energy / bess_capacity
-                    soc = cap_of_batery / max_cap_of_batery
+                    soc = cap_of_battery / max_cap_of_battery
                     #print("soc after charge", soc)
                 else:
                     discarded_production = remaining_production
@@ -302,7 +276,17 @@ def simulator_with_solar(all_data):
     return results
 
 
-results = simulator_with_solar(all_2021_data)
+
+parameters = Parameters()
+
+met_2021_data, cons_2021_data = read_datasets()
+
+add_production_field(met_2021_data, parameters)
+
+all_2021_data = interpolate_and_join(met_2021_data, cons_2021_data)
+
+results = simulator_with_solar(all_2021_data, parameters)
+
 
 
 #@title
