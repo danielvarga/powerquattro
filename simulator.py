@@ -15,10 +15,10 @@ from scipy.interpolate import interp1d
 # !wget "https://static.renyi.hu/ai-shared/daniel/pq/PL_44527.19-21.csv"
 # !wget "https://static.renyi.hu/ai-shared/daniel/pq/pq_terheles_2021_adatok.tsv"
 
+
 PATH_PREFIX = "./"
 
 matplotlib.rcParams['figure.figsize'] = [12, 8]
-
 
 START = f"2021-01-01"
 END = f"2022-01-01"
@@ -252,18 +252,6 @@ def simulator_with_solar(all_data, parameters):
     charge_of_bess_series = np.array(charge_of_bess_series)
     discarded_production_series = np.array(discarded_production)
 
-    x = range(len(consumption_from_solar_series))
-    y = [consumption_from_solar_series, consumption_from_network_series, consumption_from_bess_series]
-    plt.plot(x, y[0], label='Demand served by solar', color='yellow', linewidth=0.5)
-    plt.plot(x, y[0]+y[1], label='Demand served by network', color='blue', linewidth=0.5)
-    plt.plot(x, y[0]+y[1]+y[2], label='Demand served by BESS', color='green', linewidth=0.5)
-    plt.fill_between(x, y[0]+y[1]+y[2], 0, color='green')
-    plt.fill_between(x, y[0]+y[1], 0, color='blue')
-    plt.fill_between(x, y[0], 0, color='yellow')
-
-    plt.legend()
-    plt.show()
-
     results = pd.DataFrame({'soc_series': soc_series, 'consumption_from_solar': consumption_from_solar_series,
                             'consumption_from_network': consumption_from_network_series,
                             'consumption_from_bess': consumption_from_bess_series,
@@ -274,6 +262,81 @@ def simulator_with_solar(all_data, parameters):
                             })
     results = results.set_index(all_data.index)
     return results
+
+
+def visualize_simulation(results, date_range):
+    start_date, end_date = date_range
+
+    results = results.loc[start_date: end_date]
+
+    x = results.index
+    y = [results.consumption_from_solar, results.consumption_from_network, results.consumption_from_bess]
+    plt.plot(x, y[0], label='Demand served by solar', color='yellow', linewidth=0.5)
+    plt.plot(x, y[0]+y[1], label='Demand served by network', color='blue', linewidth=0.5)
+    plt.plot(x, y[0]+y[1]+y[2], label='Demand served by BESS', color='green', linewidth=0.5)
+    plt.fill_between(x, y[0]+y[1]+y[2], 0, color='green')
+    plt.fill_between(x, y[0]+y[1], 0, color='blue')
+    plt.fill_between(x, y[0], 0, color='yellow')
+
+    # plt.xlim(datetime.datetime.fromisoformat(start_date), datetime.datetime.fromisoformat(end_date))
+
+    plt.legend()
+    plt.show()
+
+
+def monthly_analysis(results):
+    consumptions = []
+    for month in range(1, 13):
+        start = f"2021-{month:02}-01"
+        end = f"2021-{month+1:02}-01"
+        if month == 12:
+            end = "2022-01-01"
+        results_in_month = results[(results.index >= start) & (results.index < end)]
+
+        total = results_in_month['Consumption'].sum()
+        network = results_in_month['consumption_from_network'].sum()
+        solar = results_in_month['consumption_from_solar'].sum()
+        bess = results_in_month['consumption_from_bess'].sum()
+        consumptions.append([network, solar, bess])
+
+    consumptions = np.array(consumptions)
+    step_in_minutes = results.index.freq.n
+    # consumption is given in kW. each tick is step_in_minutes long (5mins, in fact)
+    # we get consumption in kWh if we multiply sum by step_in_minutes/60
+    consumptions_in_mwh = consumptions * (step_in_minutes / 60) / 1000
+    percentages = consumptions[:, :3] / consumptions.sum(axis=1, keepdims=True) * 100
+    bats = 0
+    nws = 0
+    sols = 0
+
+    print("[Mwh]")
+    print("==========================")
+    print("month\tnetwork\tsolar\tbess")
+    for month_minus_1 in range(12):
+        network, solar, bess = consumptions_in_mwh[month_minus_1]
+        print(f"{month_minus_1+1}\t{network:0.2f}\t{solar:0.2f}\t{bess:0.2f}")
+        bats += bess
+        nws += network
+        sols += solar
+    print(f"\t{nws:0.2f}\t{sols:0.2f}\t{bats:0.2f}")
+
+
+    fig, ax = plt.subplots()
+
+    ax.stackplot(range(1, 13),
+                  percentages[:, 0], percentages[:, 1], percentages[:, 2],
+                  labels=["hálózat", "egyenesen a naptól", "a naptól a BESS-en keresztül"])
+    ax.set_ylim(0, 100)
+    ax.legend()
+    plt.title('A fogyasztás hány százalékát fedezte az adott hónapban?')
+    plt.show()
+
+    plt.stackplot(range(1, 13),
+                  consumptions_in_mwh[:, 0], consumptions_in_mwh[:, 1], consumptions_in_mwh[:, 2],
+                  labels=["hálózat", "egyenesen a naptól", "a naptól a BESS-en keresztül"])
+    plt.legend()
+    plt.title('Mennyi fogyasztást fedezett az adott hónapban? [MWh]')
+    plt.show()
 
 
 
@@ -287,67 +350,6 @@ all_2021_data = interpolate_and_join(met_2021_data, cons_2021_data)
 
 results = simulator_with_solar(all_2021_data, parameters)
 
+visualize_simulation(results, date_range=("2021-02-01", "2021-03-01"))
 
-
-#@title
-consumptions = []
-for month in range(1, 13):
-    start = f"2021-{month:02}-01"
-    end = f"2021-{month+1:02}-01"
-    if month == 12:
-        end = "2022-01-01"
-    results_in_month = results[(results.index >= start) & (results.index < end)]
-
-    total = results_in_month['Consumption'].sum()
-    network = results_in_month['consumption_from_network'].sum()
-    solar = results_in_month['consumption_from_solar'].sum()
-    bess = results_in_month['consumption_from_bess'].sum()
-    consumptions.append([network, solar, bess])
-
-consumptions = np.array(consumptions)
-step_in_minutes = all_2021_data.index.freq.n
-# consumption is given in kW. each tick is step_in_minutes long (5mins, in fact)
-# we get consumption in kWh if we multiply sum by step_in_minutes/60
-consumptions_in_mwh = consumptions * (step_in_minutes / 60) / 1000
-percentages = consumptions[:, :3] / consumptions.sum(axis=1, keepdims=True) * 100
-bats=0
-nws=0
-sols=0
-
-print("[Mwh]")
-print("==========================")
-print("month\tnetwork\tsolar\tbess")
-for month_minus_1 in range(12):
-    network, solar, bess = consumptions_in_mwh[month_minus_1]
-    print(f"{month_minus_1+1}\t{network:0.2f}\t{solar:0.2f}\t{bess:0.2f}")
-    bats += bess
-    nws+= network
-    sols+= solar
-print(f"\t{nws:0.2f}\t{sols:0.2f}\t{bats:0.2f}")
-
-
-fig, ax = plt.subplots()
-
-ax.stackplot(range(1, 13),
-              percentages[:, 0], percentages[:, 1], percentages[:, 2],
-              labels=["hálózat", "egyenesen a naptól", "a naptól a BESS-en keresztül"])
-ax.set_ylim(0, 100)
-
-'''
-ax2 = ax.twinx()
-ax2.plot(range(1, 13), np.linspace(0, 1, 12), label='SOC', color='red')
-ax.set_ylim(0, 1)
-ax2.legend()
-'''
-ax.legend()
-plt.title('A fogyasztás hány százalékát fedezte az adott hónapban?')
-plt.show()
-
-plt.stackplot(range(1, 13),
-              consumptions_in_mwh[:, 0], consumptions_in_mwh[:, 1], consumptions_in_mwh[:, 2],
-              labels=["hálózat", "egyenesen a naptól", "a naptól a BESS-en keresztül"])
-plt.legend()
-plt.title('Mennyi fogyasztást fedezett az adott hónapban? [MWh]')
-plt.show()
-
-
+monthly_analysis(results)
