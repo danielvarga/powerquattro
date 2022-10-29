@@ -10,6 +10,10 @@ import matplotlib
 import datetime
 from scipy.interpolate import interp1d   
 
+import gradio as gr
+import plotly.express as px
+import plotly.graph_objects as go
+
 
 #@title ### Downloading the data
 # !wget "https://static.renyi.hu/ai-shared/daniel/pq/PL_44527.19-21.csv"
@@ -134,7 +138,7 @@ def simulator_with_solar(all_data, parameters):
         charge_of_bess = 0
         
         #Remark: If the consumption stable for ex. 10 kwh
-        demand=10
+        # demand = 10
         unsatisfied_demand = demand
         remaining_production = production # max((production, 0))
         discarded_production = 0
@@ -267,6 +271,7 @@ def simulator_with_solar(all_data, parameters):
 def visualize_simulation(results, date_range):
     start_date, end_date = date_range
 
+    fig = plt.figure()
     results = results.loc[start_date: end_date]
 
     x = results.index
@@ -281,7 +286,44 @@ def visualize_simulation(results, date_range):
     # plt.xlim(datetime.datetime.fromisoformat(start_date), datetime.datetime.fromisoformat(end_date))
 
     plt.legend()
-    plt.show()
+    return fig
+
+
+def plotly_visualize_simulation(results, date_range):
+    start_date, end_date = date_range
+    results = results.loc[start_date: end_date]
+    '''
+    fig = px.area(results, x=results.index, y="consumption_from_network")
+    return fig'''
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x=results.index, y=results['consumption_from_network'],
+        hoverinfo='x+y',
+        mode='lines',
+        line=dict(width=0.5, color='blue'),
+        name='Network',
+        stackgroup='one' # define stack group
+    ))
+    fig.add_trace(go.Scatter(
+        x=results.index, y=results['consumption_from_solar'],
+        hoverinfo='x+y',
+        mode='lines',
+        line=dict(width=0.5, color='orange'),
+        name='Solar',
+        stackgroup='one'
+    ))
+    fig.add_trace(go.Scatter(
+        x=results.index, y=results['consumption_from_bess'],
+        hoverinfo='x+y',
+        mode='lines',
+        line=dict(width=0.5, color='green'),
+        name='BESS',
+        stackgroup='one'
+    ))
+    fig.update_layout(
+        height=400
+    )
+    return fig
 
 
 def monthly_analysis(results):
@@ -340,16 +382,53 @@ def monthly_analysis(results):
 
 
 
-parameters = Parameters()
+def main():
+    parameters = Parameters()
+
+    met_2021_data, cons_2021_data = read_datasets()
+
+    add_production_field(met_2021_data, parameters)
+
+    all_2021_data = interpolate_and_join(met_2021_data, cons_2021_data)
+
+    results = simulator_with_solar(all_2021_data, parameters)
+
+    fig = visualize_simulation(results, date_range=("2021-02-01", "2021-03-01"))
+    plt.show()
+
+    monthly_analysis(results)
+
 
 met_2021_data, cons_2021_data = read_datasets()
 
-add_production_field(met_2021_data, parameters)
 
-all_2021_data = interpolate_and_join(met_2021_data, cons_2021_data)
+def recalculate(**uiParameters):
+    parameters = Parameters()
+    for k, v in uiParameters.items():
+        setattr(parameters, k, v)
 
-results = simulator_with_solar(all_2021_data, parameters)
+    add_production_field(met_2021_data, parameters)
+    all_2021_data = interpolate_and_join(met_2021_data, cons_2021_data)
+    results = simulator_with_solar(all_2021_data, parameters)
+    return results
 
-visualize_simulation(results, date_range=("2021-02-01", "2021-03-01"))
 
-monthly_analysis(results)
+def ui_refresh(solar_cell_num, bess_nominal_capacity):
+    results = recalculate(solar_cell_num=solar_cell_num, bess_nominal_capacity=bess_nominal_capacity)
+
+    fig1 = plotly_visualize_simulation(results, date_range=("2021-02-01", "2021-02-07"))
+    fig2 = plotly_visualize_simulation(results, date_range=("2021-08-02", "2021-08-08"))
+
+    return (fig1, fig2)
+
+
+ui = gr.Interface(
+    ui_refresh,
+    inputs = [
+        gr.Slider(0, 1000, 114, label="Solar cell number"),
+        gr.Slider(0, 1000, 330, label="BESS nominal capacity")],
+    outputs = ["plot", "plot"],
+    live=True,
+)
+
+ui.launch()
