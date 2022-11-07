@@ -99,7 +99,6 @@ def interpolate_and_join(met_2021_data, cons_2021_data):
 
 
 def simulator_with_solar(all_data, parameters):
-    
     demand_np = all_data['Consumption'].to_numpy()
     production_np = all_data['Production'].to_numpy()
     assert len(demand_np) == len(production_np)
@@ -346,7 +345,11 @@ def monthly_analysis(results):
     # consumption is given in kW. each tick is step_in_minutes long (5mins, in fact)
     # we get consumption in kWh if we multiply sum by step_in_minutes/60
     consumptions_in_mwh = consumptions * (step_in_minutes / 60) / 1000
-    percentages = consumptions[:, :3] / consumptions.sum(axis=1, keepdims=True) * 100
+    return consumptions_in_mwh
+
+
+def monthly_visualization(consumptions_in_mwh):
+    percentages = consumptions_in_mwh[:, :3] / consumptions_in_mwh.sum(axis=1, keepdims=True) * 100
     bats = 0
     nws = 0
     sols = 0
@@ -381,7 +384,6 @@ def monthly_analysis(results):
     plt.show()
 
 
-
 def main():
     parameters = Parameters()
 
@@ -396,38 +398,58 @@ def main():
     fig = visualize_simulation(results, date_range=("2021-02-01", "2021-03-01"))
     plt.show()
 
-    monthly_analysis(results)
+    consumptions_in_mwh = monthly_analysis(results)
+    monthly_visualization(consumptions_in_mwh)
+
+
+# main() ; exit()
 
 
 met_2021_data, cons_2021_data = read_datasets()
 
 
 def recalculate(**uiParameters):
+    fixed_consumption = uiParameters['fixed_consumption']
+    del uiParameters['fixed_consumption']
+
     parameters = Parameters()
     for k, v in uiParameters.items():
         setattr(parameters, k, v)
 
     add_production_field(met_2021_data, parameters)
     all_2021_data = interpolate_and_join(met_2021_data, cons_2021_data)
+
+    if fixed_consumption:
+        all_2021_data['Consumption'] = 10
+
     results = simulator_with_solar(all_2021_data, parameters)
     return results
 
 
-def ui_refresh(solar_cell_num, bess_nominal_capacity):
-    results = recalculate(solar_cell_num=solar_cell_num, bess_nominal_capacity=bess_nominal_capacity)
+def ui_refresh(solar_cell_num, bess_nominal_capacity, fixed_consumption):
+    results = recalculate(solar_cell_num=solar_cell_num, bess_nominal_capacity=bess_nominal_capacity, fixed_consumption=fixed_consumption)
 
     fig1 = plotly_visualize_simulation(results, date_range=("2021-02-01", "2021-02-07"))
     fig2 = plotly_visualize_simulation(results, date_range=("2021-08-02", "2021-08-08"))
 
-    return (fig1, fig2)
+    # (12, 3), the 3 indexed with (network, solar, bess):
+    consumptions_in_mwh = monthly_analysis(results)
+
+    network, solar, bess = consumptions_in_mwh.sum(axis=0)
+    html = ""
+    for column, column_name in zip((network, solar, bess), ("network", "solar", "BESS")):
+        html += f"Yearly consumption satisfied by {column_name}: {column:0.2f} MWh<br>"
+
+    return (fig1, fig2, html)
 
 
 ui = gr.Interface(
     ui_refresh,
     inputs = [
-        gr.Slider(0, 1000, 114, label="Solar cell number"),
-        gr.Slider(0, 1000, 330, label="BESS nominal capacity")],
-    outputs = ["plot", "plot"],
+        gr.Slider(0, 2000, 114, label="Solar cell number"),
+        gr.Slider(0, 1000, 330, label="BESS nominal capacity"),
+        gr.Checkbox(value=False, label="Fixed consumption")],
+    outputs = ["plot", "plot", "html"],
     live=True,
 )
 
