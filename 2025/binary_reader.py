@@ -5,18 +5,7 @@ import sys
 from collections import namedtuple
 import pickle
 
-# Define a namedtuple for a single module's data.
-ModuleData = namedtuple("ModuleData", [
-    "PAC", "QAC", "PAkku", "UAkku", "PSol", "USol", 
-    "TAkku", "NTC", "ErrAC", "StatAC", "ErrDC", "StatDC"
-])
-
-# Define a top-level namedtuple to hold the complete record.
-BinaryRecord = namedtuple("BinaryRecord", [
-    "SaveSec", "Moduls0", "Moduls1", "modules",
-    "uRMS", "iRMS", "Pac",
-    "Eac", "EACSum", "EAkkuSum", "ESolSum"
-])
+from base import *
 
 
 def round3(t):
@@ -132,13 +121,13 @@ if __name__ == "__main__":
 
     # by convention date is only stored in the filename, its directory/date.bin
     date_string = bin_filename.split("/")[-1].split(".")[0]
-    print(date_string)
-    exit()
+
     records = read_ad_hoc_file(bin_filename)
-    print("#records", len(records))
+    print(date_string, "#records", len(records))
     with open(pkl_filename, "wb") as f:
         data = (date_string, records)
-        pickle.dump(data, pkl_filename)
+        pickle.dump(data, f)
+        print(pkl_filename)
     exit()
 
     # Pretty-print the record to see all fields in order
