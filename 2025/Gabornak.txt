@@ -1,0 +1,157 @@
+File formatum
+file fejlec: Vxxx/0, 5 byte, xxx file verzioszama
+recordoc
+  SaveSec, 4byte, unsigned long: A mentes mintavetel napi ideje [sec]
+  Moduls0, 1byte, unsigned char: 1. kontener aktiv modulok szama
+  Moduls1, 1byte, unsigned char: 2. kontener aktiv modulok szama
+  // Modul adatok, modulonkent, eloszor 1. majd 2. kontener, Moduls0+Moduls1 modul
+  PAC, 3*4byte, float: AC wattos teljesitmeny (R,S,T) [kW]
+  QAC, 3*4byte, float: AC meddo teljesitmeny (R,S,T) [kVAr]
+  PAkku, 2*4byte, float: Akku teljesitmeny (p,n) [kW]
+  UAkku, 2*4byte, float: Akku fesz. (p,n) [V]
+  PSol, 2*4byte, float: Solar teljesitmeny (1,2) [kW]
+  USol, 2*4byte, float: Solar fesz. (1,2) [V]
+  TAkku, 4byte, float: Akku hom [C]
+  NTC, 2*4byte, float: NTC hom (AC,DC) [C]
+  ErrAC, 1byte, unsigned char: AC hibaallapot, bit0..6: kod, bit7: hibaallapot
+  StatAC, 1byte, unsigned char: AC status, bit0..3: uzemallapot, bit4: uzemkesz, bit7: CAN timeout
+  ErrDC, 1byte, unsigned char: DC hibaallapot, bit0..6: kod, bit7: hibaallapot
+  StatDC, 1byte, unsigned char: DC status, bit0: Sol1 uzemallapot, bit1: Sol2 uzemallapot, bit2-3: Akku uzemallapot, bit4: Sol1 uzemkesz, bit5: Sol2 uzemkesz, bit6: Akku uzemkesz, bit7: CAN timeout
+  // Mester adatokStatusok
+  uRMS, 7*4byte, float: AC feszultseg (R,S,T,RS,ST,TR,0) [V]
+  iRMS, 6*4byte, float: AC aram halozati (R,S,T), fogyasztoi (R,S,T) [A]
+  Pac, 2*4byte, float: AC teljesitmeny mert halozati, fogyasztoi [kW]
+  // Szamitott jelek
+  Eac, 2*4byte, float: AC energia halozati, fogyasztoi [kWh]
+  EACSum, 3*4byte, float: Osszesitett AC wattos napi energia (1. kontener, 2 kontener, ossz.) [kWh]
+  EAkkuSum, 3*4byte, float: Osszesitett akku energia (1. kontener, 2 kontener, ossz.) [kWh]
+  ESolSum, 3*4byte, float: Osszesitett solar energia (1. kontener, 2 kontener, ossz.) [kWh]
+
+Ethernet formatum
+  Moduls0, 1byte, unsigned char: 1. kontener aktiv modulok szama
+  Moduls1, 1byte, unsigned char: 2. kontener aktiv modulok szama
+  // Modul adatok, modulonkent, eloszor 1. majd 2. kontener, Moduls0+Moduls1 modul
+  // AC adatok
+  PAC, 3*4byte, float: AC wattos teljesitmeny (R,S,T) [kW]
+  QAC, 3*4byte, float: AC meddo teljesitmeny (R,S,T) [kVAr]
+  SAC, 3*4byte, float: AC latszolagos teljesitmeny (R,S,T) [kVA]
+  IPAC, 3*4byte, float: AC wattos aram (R,S,T) [A]
+  IQAC, 3*4byte, float: AC meddo aram (R,S,T) [A]
+  ISAC, 3*4byte, float: AC latszolagos aram (R,S,T) [A]
+  // Akku adatok
+  PAkku, 2*4byte, float: Akku teljesitmeny (p,n) [kW]
+  UAkku, 2*4byte, float: Akku fesz. (p,n) [V]
+  IAkku, 2*4byte, float: Akku aram (p,n) [A]
+  // Solar adatok
+  PSol, 2*4byte, float: Solar teljesitmeny (1,2) [kW]
+  USol, 2*4byte, float: Solar fesz. (1,2) [V]
+  ISol, 2*4byte, float: Solar aram (1,2) [A]
+  // Homersekletek
+  TAkku, 4byte, float: Akku hom [C]
+  NTC, 2*4byte, float: NTC hom (AC,DC) [C]
+  // Statusok
+  ErrAC, 1byte, unsigned char: AC hibaallapot, bit0..6: kod, bit7: hibaallapot
+  StatAC, 1byte, unsigned char: AC status, bit0..3: uzemallapot, bit4: uzemkesz, bit7: CAN timeout
+  ErrDC, 1byte, unsigned char: DC hibaallapot, bit0..6: kod, bit7: hibaallapot
+  StatDC, 1byte, unsigned char: DC status, bit0: Sol1 uzemallapot, bit1: Sol2 uzemallapot, bit2-3: Akku uzemallapot, bit4: Sol1 uzemkesz, bit5: Sol2 uzemkesz, bit6: Akku uzemkesz, bit7: CAN timeout
+  StAC, 1byte, unsigned char: AC uzem status 0: Off, 1: error, 2: uzemkesz, 3: szigetuzem, 4: visszataplalas, 5: egyeniranyitas
+  StAkku, 1byte, unsigned char: Akku uzem status 0: Off, 1: error, 2: uzemkesz, 3: booster, 4: toltes
+  StSol, 1byte, unsigned char: Sol uzem status (1,2): Off, 1: error, 2: uzemkesz, 3: uzem
+  CanTo, 1byte, unsigned char: Can timeout (AC,DC): 0: Ok, 1: timeout
+  // Mester adatok
+  uRMS, 7*4byte, float: AC feszultseg (R,S,T,RS,ST,TR,0) [V]
+  iRMS, 6*4byte, float: AC aram halozati (R,S,T), fogyasztoi (R,S,T) [A]
+  Pac, 2*4byte, float: AC teljesitmeny mert halozati, fogyasztoi [kW]
+  // Szamitott jelek
+  PACSum, 3*4byte, float: Osszesitett AC wattos teljesitmeny (1. kontener, 2 kontener, ossz.) [kW]
+  PAkkuSum, 3*4byte, float: Osszesitett akku teljesitmeny (1. kontener, 2 kontener, ossz.) [kW]
+  PSolSum, 3*4byte, float: Osszesitett solar teljesitmeny (1. kontener, 2 kontener, ossz.) [kW]
+  Eac, 2*4byte, float: AC energia halozati, fogyasztoi [kWh]
+  EACSum, 3*4byte, float: Osszesitett AC wattos napi energia (1. kontener, 2 kontener, ossz.) [kWh]
+  EAkkuSum, 3*4byte, float: Osszesitett akku energia (1. kontener, 2 kontener, ossz.) [kWh]
+  ESolSum, 3*4byte, float: Osszesitett solar energia (1. kontener, 2 kontener, ossz.) [kWh]
+  // Szamitott modul adatok, modulonkent, eloszor 1. majd 2. kontener, Moduls0+Moduls1 modul
+  PACM, 4byte, float: Modul AC wattos teljesitmeny (R+S+T) [kW]
+  QACM, 4byte, float: Modul AC meddo teljesitmeny (R+S+T) [kVAr]
+  SACM, 4byte, float: Modul AC latszolagos teljesitmeny (R+S+T) [kVA]
+  PAkkuM, 4byte, float: Modul akku teljesitmeny (p+n) [kW]
+  PSolM, 4byte, float: Modul solar teljesitmeny (1+2) [kW]
+
+Forras:
+UzemmodTabType UzemmodACTab[] = {
+	{ "Off", "OFF", BLACK , } ,
+	{ "Error", "ERR", LIGHTRED } ,
+	{ "Üzemkész", "ÜK", YELLOW } ,
+	{ "Szigetüzem", "SZÜ", LIGHTBLUE } ,
+	{ "Visszatáplás", "LOAD", LIGHTGREEN } ,
+	{ "Egyenirányítás", "EI", LIGHTMAGENTA } ,
+} ;
+
+
+UzemmodTabType UzemmodAkkuTab[] = {
+	{ "Off", "OFF", BLACK , } ,
+	{ "Error" , "ERR", LIGHTRED } ,
+	{ "Üzemkész", "ÜK", YELLOW } ,
+	{ "Booster" , "BST", LIGHTGREEN } ,
+	{ "Töltés", "TÖLT", LIGHTMAGENTA } ,
+	{ "", "", BLACK } ,
+} ;
+
+UzemmodTabType UzemmodSolTab[] = {
+	{ "Off", "OFF", BLACK , } ,
+	{ "Error", "ERR", LIGHTRED } ,
+	{ "Üzemkész", "ÜK", YELLOW } ,
+	{ "Üzem", "ÜZEM", LIGHTGREEN } ,
+	{ "", "", BLACK } ,
+	{ "", "", BLACK } ,
+} ;
+
+UzemmodTabType CanToTab[] = {
+	{ "OK", "OK",BLACK , } ,
+	{ "TimeOut", "TO", LIGHTRED } ,
+	{ "", "", BLACK } ,
+	{ "", "", BLACK } ,
+	{ "", "", BLACK } ,
+	{ "", "", BLACK } ,
+} ;
+
+			// AC uzem status 
+			if (ErrAC[Cnt1][Cnt2]&0x80)
+				StAC[Cnt1][Cnt2] = 0x01 ; // Error
+			else if (!(StatAC[Cnt1][Cnt2]&0x1f))
+				StAC[Cnt1][Cnt2] = 0x00 ; // Off
+			else if ((StatAC[Cnt1][Cnt2]&0x03)==0x01)
+				StAC[Cnt1][Cnt2] = 0x03 ; // Szigetuzem
+			else if (StatAC[Cnt1][Cnt2]&0x04)
+				StAC[Cnt1][Cnt2] = 0x04 ; // Visszataplalas
+			else if (StatAC[Cnt1][Cnt2]&0x08)
+				StAC[Cnt1][Cnt2] = 0x05 ; // Egyeniranyitas
+			else if (StatAC[Cnt1][Cnt2]&0x10)
+				StAC[Cnt1][Cnt2] = 0x02 ; // Uzemkesz
+			else 
+				StAC[Cnt1][Cnt2] = 0x00 ; // Off
+			// Akku uzem status 
+			if (ErrDC[Cnt1][Cnt2]&0x80)
+				StAkku[Cnt1][Cnt2] = 0x01 ; // Error
+			else if (!(StatDC[Cnt1][Cnt2]&0x4c))
+				StAkku[Cnt1][Cnt2] = 0x00 ; // Off
+			else if (StatDC[Cnt1][Cnt2]&0x04)
+				StAkku[Cnt1][Cnt2] = 0x04 ; // Toltes
+			else if (StatDC[Cnt1][Cnt2]&0x08)
+				StAkku[Cnt1][Cnt2] = 0x03 ; // Booster
+			else if (StatDC[Cnt1][Cnt2]&0x40)
+				StAkku[Cnt1][Cnt2] = 0x02 ; // Uzemkesz
+			else 
+				StAkku[Cnt1][Cnt2] = 0x00 ; // Off
+			// Sol1 uzem status
+			if (ErrDC[Cnt1][Cnt2]&0x80)
+				StSol[Cnt1][Cnt2][0] = 0x01 ; // Error
+			else if (!(StatDC[Cnt1][Cnt2]&0x11))
+				StSol[Cnt1][Cnt2][0] = 0x00 ; // Off
+			else if (StatDC[Cnt1][Cnt2]&0x01)
+				StSol[Cnt1][Cnt2][0] = 0x03 ; // Uzem
+			else if (StatDC[Cnt1][Cnt2]&0x10)
+				StSol[Cnt1][Cnt2][0] = 0x02 ; // Uzemkesz
+			else 
+				StSol[Cnt1][Cnt2][0] = 0x00 ; // Off
+

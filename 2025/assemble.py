@@ -9,7 +9,7 @@ from datetime import datetime
 from base import *
 
 
-def extract_data(pkl_filename, expected_module_count):
+def extract_data(pkl_filename, expected_module_count, key):
     with open(pkl_filename, "rb") as f:
         date, records = pickle.load(f)
 
@@ -40,7 +40,6 @@ def extract_data(pkl_filename, expected_module_count):
     if len(kept_secs) == 0:
         return np.zeros((0, 13)), date
 
-    key = "PSol"
     modulewise = []
     for module_index in range(expected_module_count):
         kept_data = np.array([getattr(records[i].modules[module_index], key) for i in kept_indices])
@@ -51,7 +50,9 @@ def extract_data(pkl_filename, expected_module_count):
 
 def main_vis():
     pkl_filename, = sys.argv[1:]
-    all_data = extract_data(pkl_filename, expected_module_count=6)
+    key = "PSol"
+
+    all_data = extract_data(pkl_filename, expected_module_count=6, key=key)
     kept_secs = all_data[:, 0]
     aggregated = all_data[:, 1:].sum(axis=-1)
     plt.plot(kept_secs, aggregated)
@@ -74,11 +75,14 @@ def main_vis():
 
 
 def main_assemble():
+    key = "PSol"
+    key = "PAC"
+
     all_data = []
     first_day_offset = None
     for l in sys.stdin:
         pkl_filename = l.strip()
-        all_daily_data, date_str = extract_data(pkl_filename, expected_module_count=6)
+        all_daily_data, date_str = extract_data(pkl_filename, expected_module_count=6, key=key)
 
         full_date_str = "20" + date_str
         dt = datetime.strptime(full_date_str, "%Y%m%d")
@@ -93,7 +97,7 @@ def main_assemble():
     all_data = np.concatenate(all_data, axis=0)
     # all_data[:, 0] -= first_day_offset
 
-    np.save("psol.npy", all_data)
+    np.save("pac.npy", all_data)
 
     kept_secs = all_data[:, 0]
     # assert np.allclose(kept_secs, np.sort(kept_secs))
